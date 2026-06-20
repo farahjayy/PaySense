@@ -1,7 +1,7 @@
 # PaySense: Gen-Z Financial Copilot
 ### An AI-Driven System for Financial Health Forecasting and BNPL Debt Prevention
 
-**Version:** 3.0 — June 2026  
+**Version:** 4.0 — June 2026  
 **Student:** Nur Farah Binti Ahmad Nazri (22007916)  
 **Supervisor:** Dr. Nazleeni Samiha Bt Haron  
 **Institution:** Universiti Teknologi PETRONAS — Bachelor of Computer Science (Hons)  
@@ -18,6 +18,7 @@
 | 1.0 | May 2025 | Initial concept document |
 | 2.0 | June 2025 | Major revision: confirmed ML model candidates (ARIMA, Prophet, LSTM for forecasting; Random Forest, XGBoost, LightGBM for classification), updated tech stack (Next.js, Supabase, FastAPI), added detailed model evaluation plan, two-semester Gantt chart, open-source references, and architecture details |
 | 3.0 | June 2026 | Literature review integration: expanded from 5 to 30 papers across 7 domains (2021–2026), added full Literature Review Matrix (Section 10.2), 5 Research Gaps (Section 10.3), updated Kaggle dataset to ramyapintchy Personal Finance Data (2020–2024), expanded references to all 30 papers |
+| 4.0 | June 2026 | ML training complete: Engine 1 winner (ARIMA, RMSE = 7,300.30) and Engine 2 winner (XGBoost, F1 = 0.8718, ROC-AUC = 0.8751, Recall = 0.8500) documented with full 3-model empirical comparison tables (Section 8.3) |
 
 ---
 
@@ -352,6 +353,49 @@ Powers the 6-month bar chart and the risk evaluation context. Not a standalone s
 | Selection Criterion | Highest F1-Score and ROC-AUC; Recall prioritised |
 | Hyperparameter Tuning | Grid Search or Optuna for XGBoost and LightGBM |
 | Serialisation | Saved as `.pkl` and loaded by FastAPI at inference time |
+
+### 8.3 ML Model Evaluation Results
+
+Both engines have been trained and evaluated on Google Colab (GPU T4). Results below reflect empirical performance on held-out test sets using the Kaggle Personal Finance Dataset (Engine 1) and 2,000 synthetic BNPL profiles (Engine 2).
+
+#### Engine 1 — Cash Flow Forecasting Results
+
+**Dataset:** Kaggle Personal Finance Data (Jan 2020 – Dec 2024) | **Split:** 80% train / 20% test (time-series aware, no shuffling)
+
+| Rank | Model | MAE | RMSE | MAPE | Selected |
+|------|-------|----:|-----:|-----:|:--------:|
+| 1 | **ARIMA** | 5,350.51 | **7,300.30** | 257.89% | ✓ WINNER |
+| 2 | Prophet | 6,518.97 | 7,607.86 | 274.01% | |
+| 3 | LSTM | 7,911.61 | 9,923.00 | 516.27% | |
+
+> **Winner: ARIMA** — selected by lowest RMSE (7,300.30). ARIMA outperformed Prophet by 4.0% on RMSE and LSTM by 26.4% on RMSE.
+>
+> **Note on MAPE:** All three models show high MAPE (>100%) because the target variable — monthly net cashflow — includes months near zero or negative, causing percentage-based errors to be mathematically inflated. RMSE was used as the primary selection metric as planned, since it is robust to this issue.
+
+#### Engine 2 — BNPL Risk Classification Results
+
+**Dataset:** 2,000 synthetic BNPL profiles (Gen-Z Malaysian students) | **Split:** 70% train / 15% val / 15% test (stratified) | **SMOTE applied on train set only**
+
+| Rank | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | F1+AUC Avg | Selected |
+|------|-------|:--------:|:---------:|:------:|:--:|:-------:|:----------:|:--------:|
+| 1 | **XGBoost** | 0.8167 | 0.8947 | **0.8500** | **0.8718** | 0.8751 | **0.8734** | ✓ WINNER |
+| 2 | LightGBM | 0.8067 | **0.9091** | 0.8182 | 0.8612 | **0.8831** | 0.8722 | |
+| 3 | Random Forest | 0.8100 | 0.9015 | 0.8318 | 0.8652 | 0.8763 | 0.8708 | |
+
+> **Winner: XGBoost** — selected by highest average of F1 (0.8718) and ROC-AUC (0.8751), giving a combined score of 0.8734. XGBoost also achieved the highest Recall (0.8500), which is the prioritised metric — missing a high-risk case is more harmful than a false alarm.
+>
+> **Note on LightGBM:** LightGBM achieved the highest Precision (0.9091) and highest ROC-AUC (0.8831), but its lower Recall (0.8182) placed it second under the Recall-prioritised selection criterion. In a BNPL risk context, a false negative (missed high-risk case) carries greater financial harm than a false positive (unnecessary warning), justifying Recall as the tiebreaker.
+
+#### Summary of Selected Models
+
+| Engine | Task | Winner | Primary Metric | Value |
+|--------|------|--------|---------------|-------|
+| Engine 1 | Cash Flow Forecasting | **ARIMA** | RMSE (lowest) | 7,300.30 |
+| Engine 2 | BNPL Risk Classification | **XGBoost** | F1 + ROC-AUC (highest avg) | 0.8734 |
+
+Both winner models are serialised and saved to `PaySense/models/` in Google Drive:
+- `engine1_winner.pkl` — ARIMA forecasting model (pmdarima)
+- `engine2_winner.pkl` — XGBoost classification model
 
 ---
 
